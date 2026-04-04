@@ -25,7 +25,7 @@ After importing the workflow into n8n, update these credentials:
 
 1. **Google Sheets OAuth2** - For reading topics and updating status
 2. **Google Gemini API** - For generating post content
-3. **Napkin AI API Key** (HTTP Header Auth) - For image generation
+3. **Nano Banana API Key** (HTTP Header Auth) - For image generation
 4. **LinkedIn OAuth2** - For creating the post
 
 ## Import Instructions
@@ -44,4 +44,4 @@ After importing the workflow into n8n, update these credentials:
 - The workflow filters out rows where `Status = posted`, so each topic is only used once
 - The **Limit** node ensures only one post per execution
 - Adjust the Gemini prompt in the "Generate Post with Gemini" node to match your tone/style
-- The image generation node is configured as an HTTP Request — update URL and body format to match your chosen image API (Napkin AI, DALL-E, Midjourney API, etc.)
+- The image generation node is configured as an HTTP Request — update URL and body format to match your chosen image API (Nano Banana, DALL-E, Midjourney API, etc.)

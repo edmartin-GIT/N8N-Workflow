@@ -156,7 +156,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.napkin.ai/v1/generate",
+        "url": "https://api.nanobanana.com/v1/generate",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
@@ -172,17 +172,17 @@
         }
       },
       "id": "generate-image",
-      "name": "Generate Image (Napkin AI)",
+      "name": "Generate Image (Nano Banana)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1440, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "",
-          "name": "Napkin AI API Key - Configure Me"
+          "name": "Nano Banana API Key - Configure Me"
         }
       },
-      "notes": "Configure this node with your image generation API. Update the URL, authentication, and request body to match your image generation service (Napkin AI, DALL-E, Stable Diffusion, etc.)"
+      "notes": "Configure this node with your Nano Banana image generation API credentials."
     },
     {
       "parameters": {
@@ -300,14 +300,14 @@
       "main": [
         [
           {
-            "node": "Generate Image (Napkin AI)",
+            "node": "Generate Image (Nano Banana)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Generate Image (Napkin AI)": {
+    "Generate Image (Nano Banana)": {
       "main": [
         [
           {
