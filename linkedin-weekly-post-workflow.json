@@ -1,0 +1,354 @@
+{
+  "name": "LinkedIn Weekly Post Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "triggerAtDay": 3,
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Every Wednesday 10AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 300]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $json.sheetUrl || '' }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "options": {
+          "range": "",
+          "dataLocationOnSheet": {
+            "rangeDefinition": "detectAutomatically"
+          }
+        }
+      },
+      "id": "google-sheets-read",
+      "name": "Read Topics from Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [260, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 - Configure Me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "filter-posted",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "posted",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-unposted",
+      "name": "Filter Unposted Topics",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [500, 300]
+    },
+    {
+      "parameters": {
+        "maxItems": 1
+      },
+      "id": "limit-one",
+      "name": "Pick First Topic",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [720, 300]
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "models/gemini-2.0-flash"
+        },
+        "promptType": "define",
+        "text": "={{ \"You are a professional LinkedIn content creator. Write an engaging LinkedIn post about the following topic:\\n\\nTopic: \" + $json.Topic + \"\\n\\nAdditional context: \" + ($json.Details || 'None') + \"\\n\\nRequirements:\\n- Write in a professional but conversational tone\\n- Include relevant hashtags (3-5)\\n- Keep it between 150-300 words\\n- Start with a hook that grabs attention\\n- End with a call to action or question to drive engagement\\n- Use line breaks for readability\\n- Do NOT use emojis excessively, keep it professional\\n\\nReturn ONLY the post text, ready to publish.\" }}",
+        "options": {
+          "temperature": 0.7,
+          "maxOutputTokens": 1024
+        }
+      },
+      "id": "gemini-generate-post",
+      "name": "Generate Post with Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [960, 300],
+      "credentials": {
+        "googleGeminiApi": {
+          "id": "",
+          "name": "Google Gemini API - Configure Me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "set-post-text",
+              "name": "postText",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "set-topic",
+              "name": "topic",
+              "value": "={{ $('Pick First Topic').item.json.Topic }}",
+              "type": "string"
+            },
+            {
+              "id": "set-row-number",
+              "name": "rowNumber",
+              "value": "={{ $('Pick First Topic').item.json.row_number }}",
+              "type": "number"
+            },
+            {
+              "id": "set-image-prompt",
+              "name": "imagePrompt",
+              "value": "={{ 'Professional, modern illustration for a LinkedIn post about: ' + $('Pick First Topic').item.json.Topic + '. Clean design, corporate style, high quality.' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "set-fields",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.napkin.ai/v1/generate",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ prompt: $json.imagePrompt, style: 'professional', width: 1200, height: 627 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "imageData"
+            }
+          }
+        }
+      },
+      "id": "generate-image",
+      "name": "Generate Image (Napkin AI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1440, 300],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Napkin AI API Key - Configure Me"
+        }
+      },
+      "notes": "Configure this node with your image generation API. Update the URL, authentication, and request body to match your image generation service (Napkin AI, DALL-E, Stable Diffusion, etc.)"
+    },
+    {
+      "parameters": {
+        "person": "urn:li:person:YOUR_LINKEDIN_PERSON_URN",
+        "text": "={{ $json.postText }}",
+        "mediaCategory": "IMAGE",
+        "additionalFields": {}
+      },
+      "id": "linkedin-create-post",
+      "name": "Create LinkedIn Post",
+      "type": "n8n-nodes-base.linkedIn",
+      "typeVersion": 1,
+      "position": [1680, 300],
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "",
+          "name": "LinkedIn OAuth2 - Configure Me"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "url",
+          "value": "={{ $('Read Topics from Google Sheets').params.documentId.value }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "posted",
+            "PostedDate": "={{ $now.format('yyyy-MM-dd HH:mm') }}",
+            "row_number": "={{ $('Prepare Data').item.json.rowNumber }}"
+          },
+          "matchingColumns": ["row_number"]
+        },
+        "options": {}
+      },
+      "id": "update-sheet-status",
+      "name": "Mark Topic as Posted",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1920, 300],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "",
+          "name": "Google Sheets OAuth2 - Configure Me"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Every Wednesday 10AM": {
+      "main": [
+        [
+          {
+            "node": "Read Topics from Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read Topics from Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Filter Unposted Topics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Unposted Topics": {
+      "main": [
+        [
+          {
+            "node": "Pick First Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pick First Topic": {
+      "main": [
+        [
+          {
+            "node": "Generate Post with Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Post with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Image (Napkin AI)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image (Napkin AI)": {
+      "main": [
+        [
+          {
+            "node": "Create LinkedIn Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create LinkedIn Post": {
+      "main": [
+        [
+          {
+            "node": "Mark Topic as Posted",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "LinkedIn",
+      "createdAt": "2026-04-04T00:00:00.000Z",
+      "updatedAt": "2026-04-04T00:00:00.000Z"
+    },
+    {
+      "name": "Automation",
+      "createdAt": "2026-04-04T00:00:00.000Z",
+      "updatedAt": "2026-04-04T00:00:00.000Z"
+    }
+  ],
+  "triggerCount": 1,
+  "pinData": {}
+}
