@@ -97,7 +97,7 @@
           "value": "models/gemini-2.0-flash"
         },
         "promptType": "define",
-        "text": "={{ \"You are a professional LinkedIn content creator. Write an engaging LinkedIn post about the following topic:\\n\\nTopic: \" + $json.Topic + \"\\n\\nAdditional context: \" + ($json.Details || 'None') + \"\\n\\nRequirements:\\n- Write in a professional but conversational tone\\n- Include relevant hashtags (3-5)\\n- Keep it between 150-300 words\\n- Start with a hook that grabs attention\\n- End with a call to action or question to drive engagement\\n- Use line breaks for readability\\n- Do NOT use emojis excessively, keep it professional\\n\\nReturn ONLY the post text, ready to publish.\" }}",
+        "text": "={{ \"You are a professional LinkedIn content creator. Write an engaging LinkedIn post about the following topic:\\n\\nTopic: \" + $json.Topic + \"\\n\\nAdditional context: \" + ($json.Details || 'None') + \"\\n\\nRequirements:\\n- Write in a professional but conversational tone\\n- Include relevant hashtags (3-5)\\n- Keep it between 150-300 words\\n- Start with a hook that grabs attention\\n- End with a call to action or question to drive engagement\\n- Use line breaks for readability\\n- Do NOT use emojis excessively, keep it professional\\n\\nIMPORTANT: Return ONLY the plain post text, ready to copy and paste. Do NOT wrap it in JSON, do NOT use keys like 'post' or 'text', do NOT add quotes around it, do NOT use any code formatting. Just the raw post content as plain text.\" }}",
         "options": {
           "temperature": 0.7,
           "maxOutputTokens": 1024
@@ -114,6 +114,16 @@
           "name": "Google Gemini API - Configure Me"
         }
       }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean the Gemini response: strip JSON wrapping, escape chars, etc.\nlet raw = $input.first().json.text || $input.first().json.output || '';\n\n// If the response is wrapped in JSON like {\"post\": \"...\"}, extract the value\ntry {\n  const parsed = JSON.parse(raw);\n  if (typeof parsed === 'object' && parsed !== null) {\n    // Extract the first string value found (could be 'post', 'text', 'content', etc.)\n    raw = parsed.post || parsed.text || parsed.content || parsed.message || Object.values(parsed).find(v => typeof v === 'string') || raw;\n  }\n} catch (e) {\n  // Not JSON, use as-is — this is the expected case\n}\n\n// Clean up escaped characters that may remain\nlet clean = raw\n  .replace(/\\\\n/g, '\\n')    // convert literal \\n to real newlines\n  .replace(/\\\\t/g, '\\t')    // convert literal \\t to real tabs\n  .replace(/\\\\\"/g, '\"')     // convert escaped quotes\n  .replace(/^\"|\"$/g, '')    // remove surrounding quotes if present\n  .trim();\n\nreturn [{ json: { text: clean } }];"
+      },
+      "id": "clean-gemini-output",
+      "name": "Clean AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1080, 300]
     },
     {
       "parameters": {
@@ -151,7 +161,7 @@
       "name": "Prepare Data",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
-      "position": [1200, 300]
+      "position": [1320, 300]
     },
     {
       "parameters": {
@@ -175,7 +185,7 @@
       "name": "Generate Image (Nano Banana)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1440, 300],
+      "position": [1560, 300],
       "credentials": {
         "httpHeaderAuth": {
           "id": "",
@@ -195,7 +205,7 @@
       "name": "Create LinkedIn Post",
       "type": "n8n-nodes-base.linkedIn",
       "typeVersion": 1,
-      "position": [1680, 300],
+      "position": [1800, 300],
       "credentials": {
         "linkedInOAuth2Api": {
           "id": "",
@@ -231,7 +241,7 @@
       "name": "Mark Topic as Posted",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
-      "position": [1920, 300],
+      "position": [2040, 300],
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "",
@@ -286,6 +296,17 @@
       ]
     },
     "Generate Post with Gemini": {
+      "main": [
+        [
+          {
+            "node": "Clean AI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean AI Response": {
       "main": [
         [
           {
